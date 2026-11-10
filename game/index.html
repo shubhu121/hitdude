@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>HITOFUDE 一筆 — the game</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500&display=swap" rel="stylesheet" />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #0b0907;
+        color: #efe8d6;
+        font-family: "EB Garamond", Georgia, serif;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      #view {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        display: block;
+        cursor: crosshair;
+      }
+      .hud {
+        position: fixed;
+        pointer-events: none;
+        transition: opacity 0.6s;
+      }
+      .caps {
+        text-transform: uppercase;
+        letter-spacing: 0.42em;
+      }
+      /* boss card */
+      #boss {
+        top: 4.2vh;
+        left: 50%;
+        transform: translateX(-50%);
+        text-align: center;
+        opacity: 0;
+      }
+      #boss .name {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 14px;
+        font-size: clamp(15px, 1.5vw, 24px);
+        text-shadow: 0 2px 12px #000;
+      }
+      #boss img {
+        height: 1.9em;
+      }
+      #bossbar {
+        margin: 10px auto 0;
+        width: min(46vw, 620px);
+        height: 5px;
+        background: rgba(239, 232, 214, 0.16);
+      }
+      #bossfill {
+        height: 100%;
+        width: 100%;
+        background: #efe8d6;
+        transition: width 0.25s;
+      }
+      /* player */
+      #me {
+        left: 3.4vw;
+        bottom: 5vh;
+        opacity: 0;
+      }
+      #life {
+        display: flex;
+        gap: 9px;
+        margin-bottom: 12px;
+      }
+      #life i {
+        width: 13px;
+        height: 13px;
+        background: #d2311c;
+        display: block;
+        transform: rotate(45deg);
+        transition: opacity 0.3s, transform 0.3s;
+      }
+      #life i.off {
+        opacity: 0.16;
+        transform: rotate(45deg) scale(0.6);
+      }
+      #inkbar {
+        width: min(24vw, 300px);
+        height: 9px;
+        background: rgba(239, 232, 214, 0.14);
+      }
+      #inkfill {
+        height: 100%;
+        width: 100%;
+        background: #0c0a08;
+        box-shadow: inset 0 0 0 1px rgba(239, 232, 214, 0.35);
+      }
+      #me .caps {
+        font-size: 12px;
+        margin-top: 8px;
+        opacity: 0.6;
+      }
+      #hint {
+        right: 3.4vw;
+        bottom: 5vh;
+        text-align: right;
+        font-size: 13px;
+        line-height: 1.9;
+        opacity: 0;
+      }
+      #hint b {
+        font-weight: 500;
+        color: #fff;
+      }
+      /* centre messages */
+      #msg {
+        left: 50%;
+        top: 22vh;
+        transform: translateX(-50%);
+        text-align: center;
+        opacity: 0;
+        text-shadow: 0 2px 18px #000;
+      }
+      #msg img {
+        height: 15vh;
+        display: block;
+        margin: 0 auto 8px;
+        filter: drop-shadow(0 4px 18px rgba(0, 0, 0, 0.7));
+      }
+      #msg div {
+        font-size: clamp(14px, 1.3vw, 20px);
+      }
+      /* title + end cards */
+      .card {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        transition: opacity 0.9s;
+        background: radial-gradient(ellipse at center, rgba(8, 6, 4, 0.2), rgba(8, 6, 4, 0.72));
+      }
+      .card.hide {
+        opacity: 0;
+        pointer-events: none;
+      }
+      .card img.stroke {
+        width: min(46vw, 640px);
+        filter: invert(1) brightness(1.6);
+      }
+      .card h1 {
+        font-weight: 500;
+        font-size: clamp(34px, 5.6vw, 92px);
+        letter-spacing: 0.56em;
+        margin: 1.2vh 0 0 0.56em;
+      }
+      .card p {
+        margin-top: 1.6vh;
+        font-size: clamp(13px, 1.25vw, 20px);
+        opacity: 0.85;
+      }
+      .card button {
+        margin-top: 5vh;
+        pointer-events: auto;
+        font: inherit;
+        color: #efe8d6;
+        background: #d2311c;
+        border: 0;
+        padding: 15px 40px 14px 46px;
+        font-size: clamp(13px, 1.1vw, 17px);
+        letter-spacing: 0.42em;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+      .card button:hover {
+        background: #e8401f;
+      }
+      .card small {
+        margin-top: 3.4vh;
+        font-size: 13px;
+        opacity: 0.6;
+        line-height: 2;
+      }
+      #flash {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        opacity: 0;
+      }
+      #err {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        font: 12px monospace;
+        color: #f88;
+        padding: 6px;
+        white-space: pre-wrap;
+      }
+    </style>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.169.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.169.0/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+
+    <div id="boss" class="hud">
+      <div class="name caps"><img id="shiro" alt="" /><span>The Blank</span></div>
+      <div id="bossbar"><div id="bossfill"></div></div>
+    </div>
+    <div id="me" class="hud">
+      <div id="life"><i></i><i></i><i></i><i></i><i></i></div>
+      <div id="inkbar"><div id="inkfill"></div></div>
+      <div class="caps">Ink</div>
+    </div>
+    <div id="hint" class="hud caps">
+      <b>Move</b> pointer or WASD<br /><b>Paint</b> hold left mouse<br /><b>Dash</b> space
+    </div>
+    <div id="msg" class="hud">
+      <img id="msgimg" alt="" />
+      <div id="msgtxt" class="caps"></div>
+    </div>
+
+    <div id="title" class="card">
+      <img class="stroke" id="logo" alt="" />
+      <h1>HITOFUDE</h1>
+      <p class="caps" id="tag">Paint the world back</p>
+      <button id="go">Begin</button>
+      <small class="caps" id="how">
+        Wet ink hurts it. Paint a line through its head.<br />When it falls, finish it with one stroke.
+      </small>
+    </div>
+    <div id="flash"></div>
+    <div id="err"></div>
+
+    <!-- the film's brush engine, world and rig, reused as they are -->
+    <script src="../src/core.js"></script>
+    <script src="../src/world.js"></script>
+    <script src="../src/actors.js"></script>
+    <script>
+      window.addEventListener("error", (e) => (document.getElementById("err").textContent += e.message + "\n"));
+      window.addEventListener("unhandledrejection", (e) => (document.getElementById("err").textContent += String(e.reason) + "\n"));
+    </script>
+    <script type="module" src="js/main.js"></script>
+  </body>
+</html>

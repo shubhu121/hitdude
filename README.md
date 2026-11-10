@@ -9,6 +9,42 @@ which is also the title.
 
 **Watch:** [`renders/hitofude.mp4`](renders/hitofude.mp4) (1920x1080, 24 fps, 15 shots, 1,200 frames).
 
+## Play it
+
+`play/` is the game the film is cut from: the same painting, drawn by the same brush engine (`src/`), with the
+same beats. The range is brushed in, the white edge eats half of it, THE BLANK rises, the boss card slams, and
+you fight it as Sumi. The Blank really erases the painting; your strokes really leave ink on it.
+
+```bash
+python -m http.server 5173
+```
+
+Then open `http://localhost:5173/play/`.
+
+| Key | Action |
+| --- | --- |
+| A / D | move |
+| W | jump (over the tail wipe; to reach the head) |
+| S | block; a block made just before the blow lands is a parry |
+| J | strike (press again to chain three) |
+| K | heavy stroke; hold it to throw an ink wave; hold it when the Blank falls, for the one stroke |
+| L | kick |
+| Space | dash through an attack |
+
+How the fight works:
+
+- **Ink** pays for every move and comes back on its own. A parry, a clean jump over the wipe or a dash through
+  the breath gives ink back.
+- **Scars**: every stroke that lands stays on the Blank until it cleans itself. Four fresh scars at once and it
+  is *inked*: it drops, open, and takes half as much again.
+- **Its attacks**: a bite that leaves the head on the ground (your opening), a tail wipe along the ground, and
+  below 60% a breath of blankness and falling paper shards. Below 25% it bites twice.
+- **The end**: when it is beaten, hold K. Every drop of ink gathers on the brush, and the release is the film's
+  ending: impact frames, 一 through its eye, colour.
+- She is ink too: as she is hurt, bare paper shows through her.
+
+`game/` is an earlier 3D tabletop prototype (the painting on a desk, with an origami dragon).
+
 ## How it is made
 
 - One `<canvas>`, drawn in 2D from film time alone, so any frame renders in any order.

@@ -1,0 +1,341 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>HITOFUDE 一筆</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=EB+Garamond:wght@400;500;600&display=swap" rel="stylesheet" />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #17130f;
+        color: #15110e;
+        font-family: "EB Garamond", Georgia, serif;
+        user-select: none;
+        -webkit-user-select: none;
+      }
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      #frame {
+        position: relative;
+        overflow: hidden;
+        font-size: 16px;
+        background: #ebe3d0;
+      }
+      #view {
+        position: absolute;
+        left: 0;
+        top: 0;
+        display: block;
+      }
+      .caps {
+        text-transform: uppercase;
+        letter-spacing: 0.42em;
+      }
+      #hud {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        transition: opacity 0.7s;
+        pointer-events: none;
+      }
+      #hud.on {
+        opacity: 1;
+      }
+      .who {
+        position: absolute;
+        top: 3.2em;
+        width: 30%;
+      }
+      .who.l {
+        left: 3.4%;
+      }
+      .who.r {
+        right: 3.4%;
+        text-align: right;
+        opacity: 0;
+        transition: opacity 0.6s;
+      }
+      .who.r.on {
+        opacity: 1;
+      }
+      .who .n {
+        font-size: 1.02em;
+        display: flex;
+        align-items: center;
+        gap: 0.8em;
+      }
+      .who.r .n {
+        justify-content: flex-end;
+      }
+      .who .n img {
+        height: 2.1em;
+      }
+      /* a bar is a brush stroke that gets shorter */
+      .bar {
+        margin-top: 0.5em;
+        height: 1.5em;
+        position: relative;
+      }
+      .bar i {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        overflow: hidden;
+        transition: width 0.22s;
+      }
+      .who.r .bar i {
+        left: auto;
+        right: 0;
+      }
+      .bar i img {
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+      }
+      .who.r .bar i img {
+        left: auto;
+        right: 0;
+        transform: scaleX(-1);
+      }
+      .bar .ghost {
+        opacity: 0.16;
+      }
+      .bar.ink {
+        height: 0.72em;
+        width: 62%;
+        margin-top: 0.3em;
+      }
+      .bar.ink.dry {
+        animation: dry 0.3s;
+      }
+      @keyframes dry {
+        40% {
+          transform: translateX(0.5em);
+          opacity: 0.4;
+        }
+      }
+      .lbl {
+        font-size: 0.66em;
+        margin-top: 0.4em;
+        opacity: 0.6;
+      }
+      #hint {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 5.4em;
+        text-align: center;
+        font-size: 1.06em;
+        color: #ebe3d0;
+        opacity: 0;
+        transition: opacity 0.25s;
+        pointer-events: none;
+      }
+      #hint.on {
+        opacity: 1;
+      }
+      #hint b {
+        color: #ff6a4a;
+        font-weight: 600;
+      }
+      #keys {
+        position: absolute;
+        left: 50%;
+        bottom: 1.5em;
+        transform: translateX(-50%);
+        font-size: 0.78em;
+        color: #ebe3d0;
+        opacity: 0.8;
+        white-space: nowrap;
+      }
+      #keys b {
+        font-weight: 600;
+        color: #fff;
+      }
+      #prompt {
+        position: absolute;
+        left: 0;
+        right: 0;
+        top: 15%;
+        text-align: center;
+        opacity: 0;
+        transition: opacity 0.4s;
+        pointer-events: none;
+      }
+      #prompt.on {
+        opacity: 1;
+      }
+      #prompt img {
+        height: 5.4em;
+      }
+      #prompt div {
+        font-size: 1.25em;
+        margin-top: 0.2em;
+      }
+      #prompt b {
+        color: #d2311c;
+        font-weight: 600;
+      }
+      .card {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        transition: opacity 0.9s;
+        background: radial-gradient(ellipse at center, rgba(235, 227, 208, 0.9), rgba(235, 227, 208, 0.62));
+      }
+      .card.hide {
+        opacity: 0;
+        pointer-events: none;
+      }
+      .card .logo {
+        position: relative;
+        display: inline-block;
+      }
+      .card .logo .stroke {
+        width: 34em;
+        display: block;
+      }
+      .card .logo .seal {
+        position: absolute;
+        right: -3.2em;
+        bottom: -2.4em;
+        width: 5.4em;
+        transform: rotate(-4deg);
+      }
+      .card h1 {
+        font-weight: 500;
+        font-size: 5.2em;
+        letter-spacing: 0.6em;
+        margin: 0.25em 0 0 0.6em;
+      }
+      .card p {
+        margin-top: 0.9em;
+        font-size: 1.2em;
+        opacity: 0.82;
+      }
+      .card button {
+        margin-top: 2.4em;
+        font: inherit;
+        color: #ebe3d0;
+        background: #d2311c;
+        border: 0;
+        padding: 0.95em 2.6em 0.9em 3.02em;
+        font-size: 1.05em;
+        letter-spacing: 0.42em;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+      .card button:hover {
+        background: #b82814;
+      }
+      .card table {
+        margin-top: 2.2em;
+        font-size: 0.9em;
+        border-spacing: 1.5em 0.3em;
+        opacity: 0.86;
+      }
+      .card td:nth-child(odd) {
+        text-align: right;
+        font-weight: 600;
+      }
+      .card td:nth-child(even) {
+        text-align: left;
+      }
+      #fx {
+        position: absolute;
+        width: 0;
+        height: 0;
+      }
+      #err {
+        position: fixed;
+        left: 0;
+        bottom: 0;
+        font: 12px monospace;
+        color: #f66;
+        white-space: pre-wrap;
+        padding: 4px;
+        background: rgba(0, 0, 0, 0.6);
+      }
+    </style>
+  </head>
+  <body>
+    <!-- the film's ink-edge filters, used once when the world is painted -->
+    <svg id="fx" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <defs>
+        <filter id="rgh0" x="-5%" y="-5%" width="110%" height="110%" color-interpolation-filters="sRGB">
+          <feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="2" seed="3" result="n" />
+          <feDisplacementMap in="SourceGraphic" in2="n" scale="7" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+        <filter id="rgh1" x="-5%" y="-5%" width="110%" height="110%" color-interpolation-filters="sRGB">
+          <feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="2" seed="17" result="n" />
+          <feDisplacementMap in="SourceGraphic" in2="n" scale="7" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+      </defs>
+    </svg>
+    <div id="frame">
+      <canvas id="view" width="1920" height="1080"></canvas>
+      <div id="hud">
+        <div class="who l">
+          <div class="n caps"><span>Sumi</span></div>
+          <div class="bar"><i class="ghost"><img class="bs" alt="" /></i><i id="hp1"><img class="bs" alt="" /></i></div>
+          <div class="bar ink" id="inkbar"><i class="ghost"><img class="br" alt="" /></i><i id="ink1"><img class="br" alt="" /></i></div>
+          <div class="lbl caps">Ink</div>
+        </div>
+        <div class="who r" id="bossHud">
+          <div class="n caps"><span>The Blank</span><img id="shiro" alt="" /></div>
+          <div class="bar"><i class="ghost"><img class="br" alt="" /></i><i id="hp2"><img class="br" alt="" /></i></div>
+        </div>
+        <div id="keys" class="caps"><b>A D</b> move &nbsp; <b>W</b> jump &nbsp; <b>S</b> block &nbsp; <b>J</b> strike &nbsp; <b>K</b> heavy, hold for a wave &nbsp; <b>L</b> kick &nbsp; <b>Space</b> dash</div>
+      </div>
+      <div id="hint" class="caps"></div>
+      <div id="prompt">
+        <img id="pimg" alt="" />
+        <div class="caps">Hold <b>K</b> &mdash; one stroke</div>
+      </div>
+      <div id="title" class="card">
+        <div class="logo"><img class="stroke" id="logo" alt="" /><img class="seal" id="seal" alt="" /></div>
+        <h1 id="big">HITOFUDE</h1>
+        <p class="caps" id="tag">Paint the world back</p>
+        <button id="go">Begin</button>
+        <table class="caps" id="how">
+          <tr><td>A / D</td><td>move</td><td>J</td><td>strike, press again to chain</td></tr>
+          <tr><td>W</td><td>jump</td><td>K</td><td>heavy stroke; hold to throw an ink wave</td></tr>
+          <tr><td>S</td><td>block; a late block is a parry</td><td>L</td><td>kick</td></tr>
+          <tr><td>Space</td><td>dash through its attacks</td><td>Enter</td><td>start</td></tr>
+        </table>
+      </div>
+    </div>
+    <div id="err"></div>
+    <script src="../src/core.js"></script>
+    <script src="../src/world.js"></script>
+    <script src="../src/actors.js"></script>
+    <script src="../src/shots.js"></script>
+    <script src="../src/shots2.js"></script>
+    <script src="../src/shots3.js"></script>
+    <script>
+      window.addEventListener("error", (e) => (document.getElementById("err").textContent += e.message + " @" + (e.filename || "").split("/").pop() + ":" + e.lineno + "\n"));
+      window.addEventListener("unhandledrejection", (e) => (document.getElementById("err").textContent += String(e.reason) + "\n"));
+    </script>
+    <script type="module" src="js/main.js"></script>
+  </body>
+</html>
