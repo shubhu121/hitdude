@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=1920, height=1080" />
+    <script src="https://cdn.jsdelivr.net/npm/gsap@3.15.0/dist/gsap.min.js"></script>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #ebe3d0;
+      }
+      #root {
+        position: relative;
+        width: 1920px;
+        height: 1080px;
+        overflow: hidden;
+        background: #ebe3d0;
+      }
+      #film {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 1920px;
+        height: 1080px;
+        display: block;
+      }
+      /* EB Garamond is drawn into the canvas; this keeps the face loaded. */
+      #fontprobe {
+        position: absolute;
+        left: 0;
+        top: 0;
+        opacity: 0;
+        font-family: "EB Garamond", serif;
+        font-weight: 500;
+        font-size: 40px;
+        pointer-events: none;
+      }
+      #fx {
+        position: absolute;
+        width: 0;
+        height: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Ink-edge filters: displacement makes every edge look brushed; four seeds make the line boil. -->
+    <svg id="fx" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <defs>
+        <filter id="rgh0" x="-5%" y="-5%" width="110%" height="110%" color-interpolation-filters="sRGB">
+          <feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="2" seed="3" result="n" />
+          <feDisplacementMap in="SourceGraphic" in2="n" scale="7" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+        <filter id="rgh1" x="-5%" y="-5%" width="110%" height="110%" color-interpolation-filters="sRGB">
+          <feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="2" seed="17" result="n" />
+          <feDisplacementMap in="SourceGraphic" in2="n" scale="7" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+        <filter id="rgh2" x="-5%" y="-5%" width="110%" height="110%" color-interpolation-filters="sRGB">
+          <feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="2" seed="41" result="n" />
+          <feDisplacementMap in="SourceGraphic" in2="n" scale="7" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+        <filter id="rgh3" x="-5%" y="-5%" width="110%" height="110%" color-interpolation-filters="sRGB">
+          <feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="2" seed="73" result="n" />
+          <feDisplacementMap in="SourceGraphic" in2="n" scale="7" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+        <!-- torn paper: slower, larger displacement -->
+        <filter id="torn0" x="-5%" y="-5%" width="110%" height="110%" color-interpolation-filters="sRGB">
+          <feTurbulence type="fractalNoise" baseFrequency="0.014" numOctaves="3" seed="9" result="n" />
+          <feDisplacementMap in="SourceGraphic" in2="n" scale="26" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+        <filter id="torn1" x="-5%" y="-5%" width="110%" height="110%" color-interpolation-filters="sRGB">
+          <feTurbulence type="fractalNoise" baseFrequency="0.014" numOctaves="3" seed="57" result="n" />
+          <feDisplacementMap in="SourceGraphic" in2="n" scale="26" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+        <!-- wet ink: a little spread, then a ragged edge -->
+        <filter id="wet0" x="-5%" y="-5%" width="110%" height="110%" color-interpolation-filters="sRGB">
+          <feGaussianBlur in="SourceGraphic" stdDeviation="2.2" result="b" />
+          <feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="3" seed="23" result="n" />
+          <feDisplacementMap in="b" in2="n" scale="16" xChannelSelector="R" yChannelSelector="G" />
+        </filter>
+      </defs>
+    </svg>
+
+    <div
+      id="root"
+      data-composition-id="main"
+      data-start="0"
+      data-duration="50"
+      data-width="1920"
+      data-height="1080"
+    >
+      <canvas
+        id="film"
+        class="clip"
+        width="1920"
+        height="1080"
+        data-start="0"
+        data-duration="50"
+        data-track-index="0"
+        data-track-kind="graphics"
+        data-layout-allow-overflow
+      ></canvas>
+      <div id="fontprobe" data-layout-ignore>HITOFUDE</div>
+      <audio
+        id="score"
+        class="clip"
+        data-start="0"
+        data-duration="50"
+        data-track-index="1"
+        data-volume="1"
+        src="assets/audio/score.wav"
+      ></audio>
+    </div>
+
+    <script src="src/core.js"></script>
+    <script src="src/world.js"></script>
+    <script src="src/actors.js"></script>
+    <script src="src/shots.js"></script>
+    <script src="src/shots2.js"></script>
+    <script src="src/shots3.js"></script>
+    <script src="src/main.js"></script>
+  </body>
+</html>
