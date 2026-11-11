@@ -31,7 +31,8 @@ function fit() {
 }
 window.addEventListener("resize", fit);
 fit();
-const R = K.rng(4242);
+let dice = K.rng(4242);
+const R = () => dice();
 const sound = new Sound();
 const toS = (p) => [960 + p[0] * SC, GY + (p[1] - GROUND) * SC];
 
@@ -152,6 +153,9 @@ const puff = mk(96, 96);
 }
 
 export const getRs = () => rs;
+export function reseed(n) {
+  dice = K.rng(n);
+}
 export function setRs(v) {
   rs = v;
   fit();

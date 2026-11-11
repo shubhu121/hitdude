@@ -3,12 +3,13 @@ export class Sound {
   constructor() {
     this.ctx = null;
   }
-  start() {
+  /* pass an OfflineAudioContext to render a soundtrack instead of playing */
+  start(offline) {
     if (this.ctx) {
-      this.ctx.resume();
+      if (this.ctx.resume) this.ctx.resume();
       return;
     }
-    const C = (this.ctx = new (window.AudioContext || window.webkitAudioContext)());
+    const C = (this.ctx = offline || new (window.AudioContext || window.webkitAudioContext)());
     this.out = C.createDynamicsCompressor();
     this.out.threshold.value = -14;
     this.out.ratio.value = 4;
@@ -62,6 +63,9 @@ export class Sound {
     bf.connect(this.brushG);
     this.brushG.connect(this.master);
   }
+  now() {
+    return this.fixedT != null ? this.fixedT : this.ctx.currentTime;
+  }
   loop() {
     const s = this.ctx.createBufferSource();
     s.buffer = this.noise;
@@ -82,7 +86,7 @@ export class Sound {
   drum(vol = 1, f0 = 92, len = 1.5) {
     if (!this.ctx) return;
     const C = this.ctx,
-      t = C.currentTime;
+      t = this.now();
     const o = C.createOscillator(),
       g = C.createGain();
     o.frequency.setValueAtTime(f0 * 1.6, t);
@@ -110,7 +114,7 @@ export class Sound {
   blade(vol = 1) {
     if (!this.ctx) return;
     const C = this.ctx,
-      t = C.currentTime;
+      t = this.now();
     for (const f of [2630, 3410, 4720, 5890, 7240]) {
       const o = C.createOscillator(),
         g = C.createGain();
@@ -140,7 +144,7 @@ export class Sound {
   pluck(freq, vol = 0.5, when = 0) {
     if (!this.ctx) return;
     const C = this.ctx,
-      t = C.currentTime + when;
+      t = this.now() + when;
     const o = C.createOscillator(),
       o2 = C.createOscillator(),
       f = C.createBiquadFilter(),
@@ -171,7 +175,7 @@ export class Sound {
   tear(vol = 0.4) {
     if (!this.ctx) return;
     const C = this.ctx,
-      t = C.currentTime;
+      t = this.now();
     const n = C.createBufferSource(),
       nf = C.createBiquadFilter(),
       ng = C.createGain();
@@ -190,7 +194,7 @@ export class Sound {
   whoosh(vol = 0.4, dur = 0.7) {
     if (!this.ctx) return;
     const C = this.ctx,
-      t = C.currentTime;
+      t = this.now();
     const n = C.createBufferSource(),
       nf = C.createBiquadFilter(),
       ng = C.createGain();

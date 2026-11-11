@@ -11,6 +11,8 @@ which is also the title.
 
 ## Play it
 
+**Live:** https://shubhu121.github.io/hitdude/play/
+
 `play/` is the game the film is cut from: the same painting, drawn by the same brush engine (`src/`), with the
 same beats. The range is brushed in, the white edge eats half of it, THE BLANK rises, the boss card slams, and
 you fight it as Sumi. The Blank really erases the painting; your strokes really leave ink on it.
@@ -42,6 +44,17 @@ How the fight works:
 - **The end**: when it is beaten, hold K. Every drop of ink gathers on the brush, and the release is the film's
   ending: impact frames, 一 through its eye, colour.
 - She is ink too: as she is hurt, bare paper shows through her.
+
+### Recording a fight
+
+The game can film itself. `tools/rec_server.py` serves the project and saves what the page posts; in the page,
+`__P.record(seed, botSeed)` plays one fight with a player bot (`play/js/bot.js`) that presses the same keys a
+person does, steps the game at a fixed 60 Hz, and posts every frame plus a soundtrack rendered offline from the
+log of sounds the fight played. `__P.search(seeds, botSeeds)` plays fights without drawing, to pick one.
+
+```bash
+python tools/rec_server.py 5180 renders/rec
+```
 
 `game/` is an earlier 3D tabletop prototype (the painting on a desk, with an origami dragon).
 

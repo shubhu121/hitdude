@@ -1,6 +1,8 @@
 // HITOFUDE 一筆 — the fight. Ink is her resource and her weapon; blank paper is the enemy's.
 import { Fighter, GROUND, POSE } from "./fighter.js";
-import { K, W, H, GY, SC, HS, $, cv, g, mk, R, sound, toS, world, wg, wipe, wq, fg, colour, ichiC, cardC, paintWorld, bakeStatic, eraseAt, eraseRight, puff, getRs, setRs } from "./paint.js";
+import { K, W, H, GY, SC, HS, $, cv, g, mk, R, sound, toS, world, wg, wipe, wq, fg, colour, ichiC, cardC, paintWorld, bakeStatic, eraseAt, eraseRight, puff, getRs, setRs, reseed } from "./paint.js";
+import { makeBot } from "./bot.js";
+import { Sound } from "./audio.js";
 
 // ------------------------------------------------------------------ small baked things
 const SBW = 1100,
@@ -99,8 +101,27 @@ const G = {
   reveal: 1,
   seen: {},
   hintT: 0,
+  hintText: "",
   ended: false,
+  beat: 0,
+  beatN: 0,
+  kf: {},
+  rec: false,
+  noRender: false,
+  simT: 0,
+  sndLog: [],
+  stats: {},
 };
+const stat = (k) => (G.stats[k] = (G.stats[k] | 0) + 1);
+// while recording, sounds are written down with their time instead of played
+for (const n of ["drum", "blade", "pluck", "tear", "whoosh"]) {
+  const orig = sound[n].bind(sound);
+  sound[n] = (...a) => {
+    if (G.rec || G.noRender) {
+      if (G.rec) G.sndLog.push([n, a, G.simT]);
+    } else orig(...a);
+  };
+}
 const fx = {
   wind: 0,
   minX: -690,
@@ -157,6 +178,7 @@ function hint(key, html) {
   $("hint").innerHTML = html;
   $("hint").classList.add("on");
   G.hintT = 1.9;
+  G.hintText = html.replace(/<[^>]+>/g, "").replace(/&mdash;/g, "\u2014").replace(/&middot;/g, "\u00b7");
 }
 function dry() {
   const el = $("inkbar");
@@ -214,6 +236,7 @@ function hitSumi(act, srcX, kind) {
     ring(s[0] + 60, s[1], 20);
     inkBurst(s[0] + 70, s[1], 22, 1, 1.2);
     say("PARRY", s[0] + 30, s[1] - 250, true);
+    stat("parry");
     sound.blade(0.85);
     sound.drum(0.8, 150, 0.3);
     fx.shake(0.6);
@@ -237,6 +260,7 @@ function hitSumi(act, srcX, kind) {
     return;
   }
   G.combo = 0;
+  stat("hurt");
   drawTally(0);
   inkBurst(s[0], s[1], 20, -1);
   fx.shake(0.9);
@@ -259,6 +283,7 @@ function stagger() {
   B.stagCd = 7;
   B.sh.length = 0;
   say("INKED", c[0] - 120, c[1] - 160, true);
+  stat("stagger");
   slowFor(0.4, 0.3);
   G.punch = 0.8;
   sound.drum(1, 76, 1.8);
@@ -410,6 +435,7 @@ function bossUpdate(dt, t) {
         if (F.y * SC > -112) hitSumi({ dmg: 13, power: 600, launch: true }, s[0] + 200, "wipe");
         else {
           say("CLEAN", s[0], s[1] - 300);
+          stat("jumped");
           G.ink = Math.min(100, G.ink + 12);
         }
       }
@@ -441,6 +467,7 @@ function bossUpdate(dt, t) {
           if (F.state === "dash") {
             B.hitDone = true;
             say("THROUGH", s[0], s[1] - 260);
+            stat("through");
             G.ink = Math.min(100, G.ink + 12);
           }
         } else {
@@ -501,6 +528,7 @@ function bossUpdate(dt, t) {
     }
   }
   B.sh = B.sh.filter((sh) => B.clock - sh.t0 < 2.4);
+  if (B.state !== "hidden") B.P = K.path(bossSpine(t), 9);
 }
 function bossSpine(t) {
   const h = [B.hx + B.kx, B.hy + B.ky],
@@ -569,7 +597,7 @@ function damageBoss(dmg, hit, ang, heavy) {
   G.comboT = 2.4;
   drawTally(G.combo);
   G.ink = Math.min(100, G.ink + 3);
-  if (open && hit.part === "head") say("OPEN", at[0] - 60, at[1] - 150, true);
+  if (open && hit.part === "head" && !G.texts.some((x) => x.s === "OPEN" && x.life < 0.7)) say("OPEN", at[0] - 60, at[1] - 150, true);
   if (B.hp <= 0) {
     B.state = "stun";
     B.t = 0;
@@ -610,6 +638,7 @@ function stepWaves(dt) {
     const hit = G.mode === "fight" && B.state !== "hidden" ? touchBoss([px, py], [w.x, w.y], 40) : null;
     if (hit) {
       damageBoss(10, hit, Math.atan2(w.vy, w.vx) + Math.PI / 2, true);
+      stat("wave");
       G.waves.splice(i, 1);
     } else if (w.life > 1.1 || w.x > W + 200 || w.y < -200) G.waves.splice(i, 1);
   }
@@ -631,7 +660,7 @@ function begin() {
   F.reset();
   fx.maxX = 470;
   bossReset();
-  Object.assign(G, { charge: 0, flood: -1, slow: 1, slowT: 0, reveal: 0, ended: false, ft: 0, ink: 100, combo: 0, kActive: false, wavePend: -1, punch: 0, lastSerial: F.serial || 0 });
+  Object.assign(G, { charge: 0, flood: -1, slow: 1, slowT: 0, reveal: 0, ended: false, ft: 0, ink: 100, combo: 0, kActive: false, wavePend: -1, punch: 0, lastSerial: F.serial || 0, beat: 0.4, beatN: 0, hitstop: 0, shake: 0, invert: 0, stats: {}, hintT: 0 });
   G.parts.length = G.texts.length = G.rings.length = G.waves.length = G.ghosts.length = 0;
   drawTally(0);
   setMode("paint");
@@ -646,6 +675,7 @@ function lose() {
   sound.drum(1, 70, 2.4);
 }
 function endCard(big, tag, btn) {
+  if (G.rec || G.noRender) return;
   $("big").textContent = big;
   $("tag").textContent = tag;
   $("go").textContent = btn;
@@ -725,7 +755,7 @@ function base(shx = 0, shy = 0) {
 }
 function drawBoss(t) {
   if (B.state === "hidden" || B.alpha <= 0.01) return;
-  const spine = bossSpine(t);
+  const spine = B.P || bossSpine(t);
   const opt = { w: 170, jaw: B.jaw, t: K.on2(t), headS: 1.55, whisk: Math.atan2(-B.dir[1], -B.dir[0]) + 0.5, shadow: [10, 14, 18, 0.34], a: B.alpha };
   if (B.state === "cut") {
     // the cut went through its eye: two halves slide apart
@@ -748,7 +778,7 @@ function drawBoss(t) {
     }
     return;
   }
-  B.P = K.blank(g, spine, opt);
+  K.blank(g, spine, opt);
   // the strokes she has left on it
   const h = [B.hx + B.kx, B.hy + B.ky],
     d = B.dir,
@@ -782,7 +812,7 @@ function drawSumiBuf(t) {
   F.boil = Math.floor(t * 10);
   F.draw(b, K.INK);
   // she is ink: hurt, she runs dry
-  const miss = 1 - F.hp / 100;
+  const miss = G.mode === "finish" || G.mode === "won" ? 0 : 1 - F.hp / 100; // the last stroke paints her back too
   if (miss > 0.2) {
     b.setTransform(1, 0, 0, 1, 0, 0);
     b.globalCompositeOperation = "destination-out";
@@ -1091,6 +1121,7 @@ function render(t, shx, shy) {
     g.fillText(tx.s, tx.x, y);
   }
   g.globalAlpha = 1;
+  g.textAlign = "left";
   if ("letterSpacing" in g) g.letterSpacing = "0px";
   // boss card
   if (G.mode === "card") {
@@ -1249,6 +1280,7 @@ function frame(now) {
         B.state = "stun";
       }
     }
+    for (const k in G.press) G.kf[k] = 0.16;
     G.press = {};
     const wasDash = F.state === "dash";
     const foe = B.state === "hidden" ? { x: 9999, state: "idle" } : { x: (B.hx - 960) / SC, state: "idle" };
@@ -1289,6 +1321,18 @@ function frame(now) {
         G.waves.push({ x: tip[0], y: tip[1], vx: (dx / l) * 1750, vy: (dy / l) * 1750, life: 0 });
         sound.whoosh(0.5, 0.4);
         fx.shake(0.4);
+      }
+    }
+    if (fight) {
+      // a drum under the fight: slow at first, closing in as the Blank weakens
+      G.beat -= dt;
+      if (G.beat <= 0) {
+        const ph = B.hp > 60 ? 0 : B.hp > 25 ? 1 : 2;
+        G.beat += [0.52, 0.41, 0.31][ph];
+        const n = G.beatN++;
+        if (n % 4 === 2) sound.drum(0.16, 190, 0.14);
+        else sound.drum(n % 4 === 0 ? 0.3 : 0.17, 58, 0.5);
+        if (n % 8 === 5) sound.pluck([146.8, 155.6, 196, 220, 233.1, 293.7][(n * 7 + ph) % 6], 0.16);
       }
     }
     bossUpdate(dt, t);
@@ -1353,8 +1397,11 @@ function frame(now) {
 
   G.shake = Math.max(0, G.shake - real * 3.2);
   const sh = G.shake * G.shake * 18;
+  for (const k in G.kf) G.kf[k] -= real;
+  if (G.noRender) return;
   drawSumiBuf(t);
   render(t, (Math.random() - 0.5) * sh, (Math.random() - 0.5) * sh);
+  if (G.rec) recHUD();
   hud();
   if (real > 0 && real < 0.12) {
     perf.acc += real;
@@ -1371,11 +1418,15 @@ function tick(now) {
 }
 
 // ------------------------------------------------------------------ start-up
+const A = {}; // art the canvas HUD reuses
 function strokeURL(color) {
+  return strokeC(color).toDataURL();
+}
+function strokeC(color) {
   const c = mk(900, 90),
     q = c.getContext("2d");
   K.stroke(q, [[20, 46], [300, 42], [600, 47], [880, 44]], { w: 46, prof: (u) => K.lerp(0.7, 1, K.ss(0, 0.04, u)) * K.lerp(1, 0.5, K.ss(0.7, 1, u)), dry: 0.6, dryStart: 0.3, seed: 5, color, streak: 260, edge: 0.14 });
-  return c.toDataURL();
+  return c;
 }
 function glyphURL(strokes, size, color, w) {
   const c = mk(size, size);
@@ -1395,9 +1446,15 @@ document.fonts
     K.stroke(lc.getContext("2d"), [[70, 120], [330, 100], [600, 96], [860, 106], [1040, 118]], { w: 86, prof: (u) => K.lerp(0.62, 1, K.ss(0, 0.05, u)) * K.lerp(1, 0.34, Math.pow(K.ss(0.5, 1, u), 1.3)), dry: 0.72, dryStart: 0.4, seed: 77, streak: 340, edge: 0.12 });
     K.splat(lc.getContext("2d"), 84, 120, 130, 5, 26, { size: 0.9 });
     $("logo").src = $("pimg").src = lc.toDataURL();
+    A.logo = lc;
+    A.red = strokeC(K.RED);
+    A.ink = strokeC(K.INK);
+    A.shiro = mk(150, 150);
+    K.kanji(A.shiro.getContext("2d"), K.GLYPH.shiro, 6, 6, 138, { color: K.INK, w: 0.105, dry: 0.3, seed: 8 });
     const sc = mk(200, 200);
     K.seal(sc.getContext("2d"), 100, 100, 150, 0, 1);
     $("seal").src = sc.toDataURL();
+    A.seal = sc;
     requestAnimationFrame(tick);
   });
 
@@ -1410,4 +1467,225 @@ function sim(sec, each) {
   }
   last = performance.now();
 }
-window.__P = { G, F, B, sim, begin, finish };
+// ------------------------------------------------------------------ recording
+// The HUD is HTML when you play. For a recording it is painted into the canvas, with the keys being pressed.
+const KEYS = [
+  ["left", "A", 0],
+  ["right", "D", 1],
+  ["jump", "W", 2.4],
+  ["block", "S", 3.4],
+  ["light", "J", 4.8],
+  ["heavy", "K", 5.8],
+  ["kick", "L", 6.8],
+  ["dash", "SPACE", 8.2],
+];
+function recHUD() {
+  const rs = getRs();
+  g.setTransform(rs, 0, 0, rs, 0, 0);
+  g.globalAlpha = 1;
+  g.globalCompositeOperation = "source-over";
+  g.textAlign = "left";
+  const live = G.mode === "fight" || G.mode === "stun";
+  const bar = (img, x, y, w, h, frac, flip) => {
+    g.save();
+    g.translate(flip ? x + w : x, y);
+    if (flip) g.scale(-1, 1);
+    g.globalAlpha = 0.16;
+    g.drawImage(img, 0, 0, w, h);
+    g.globalAlpha = 1;
+    const f = K.clamp(frac);
+    if (f > 0.005) g.drawImage(img, 0, 0, 900 * f, 90, 0, 0, w * f, h);
+    g.restore();
+  };
+  if (G.mode !== "finish" && G.mode !== "won" && G.mode !== "title") {
+    K.text(g, "SUMI", 66, 64, { size: 21, track: 0.42 });
+    bar(A.red, 62, 76, 300, 30, F.hp / 100);
+    bar(A.ink, 62, 112, 186, 15, G.ink / 100);
+    K.text(g, "INK", 66, 150, { size: 13, track: 0.42, color: K.ink(0.6) });
+  }
+  if (live) {
+    g.drawImage(A.shiro, 1812, 32, 44, 44);
+    K.text(g, "THE BLANK", 1794, 64, { size: 21, track: 0.42, align: "right" });
+    bar(A.ink, 1558, 76, 300, 30, B.hp / 100, true);
+  }
+  if (G.hintT > 0 && live) K.text(g, G.hintText.toUpperCase(), 960, 946, { size: 23, track: 0.3, align: "center", color: K.PAPER, alpha: K.clamp(G.hintT * 4) });
+  if (G.mode === "stun" && G.charge < 0.98) {
+    g.globalAlpha = K.clamp(G.mt * 3);
+    g.drawImage(A.logo, 960 - 280, 150, 560, 112);
+    g.globalAlpha = 1;
+    K.text(g, "HOLD K \u2014 ONE STROKE", 960, 300, { size: 26, track: 0.42, align: "center", alpha: K.clamp(G.mt * 3) });
+  }
+  if (G.mode === "paint" || G.mode === "erase") K.text(g, "EVERY FRAME OF THIS GAME IS PAINTED IN CODE", 960, 96, { size: 25, track: 0.42, align: "center", color: K.ink(0.82), chars: G.mode === "paint" ? G.mt * 46 : 99 });
+  // the keys, as they are pressed
+  if (live || G.mode === "card") {
+    g.font = '600 19px "EB Garamond", Georgia, serif';
+    g.textAlign = "center";
+    g.textBaseline = "middle";
+    for (const [k, label, col] of KEYS) {
+      const w = label === "SPACE" ? 104 : 42,
+        x = 66 + col * 48,
+        y = 1000;
+      const on = G.keys[k] || G.kf[k] > 0;
+      g.fillStyle = on ? K.RED : "rgba(235,227,208,0.08)";
+      g.fillRect(x, y, w, 42);
+      g.strokeStyle = on ? K.RED : "rgba(235,227,208,0.55)";
+      g.lineWidth = 1.5;
+      g.strokeRect(x + 0.75, y + 0.75, w - 1.5, 40.5);
+      g.fillStyle = on ? "#fff" : "rgba(235,227,208,0.8)";
+      g.fillText(label, x + w / 2, y + 22);
+    }
+    g.textBaseline = "alphabetic";
+    g.textAlign = "left";
+  }
+  if (G.mode === "won") {
+    const a = K.clamp(G.mt / 0.9);
+    g.fillStyle = `rgba(235,227,208,${0.86 * a})`;
+    g.fillRect(0, 0, W, H);
+    g.globalAlpha = a;
+    g.drawImage(A.logo, 960 - 340, 250, 680, 136);
+    g.drawImage(A.seal, 1270, 330, 120, 120);
+    g.globalAlpha = 1;
+    K.text(g, "HITOFUDE", 960, 560, { size: 104, track: 0.6, align: "center", chars: (G.mt - 0.3) * 12 });
+    K.text(g, "PAINT THE WORLD BACK", 960, 628, { size: 25, track: 0.5, align: "center", color: K.ink(0.8), chars: (G.mt - 1.0) * 40 });
+    K.text(g, "PLAY IT IN YOUR BROWSER", 960, 760, { size: 22, track: 0.42, align: "center", color: K.ink(0.7), alpha: K.clamp((G.mt - 1.6) * 2) });
+    K.text(g, "SHUBHU121.GITHUB.IO/HITDUDE/PLAY", 960, 806, { size: 30, track: 0.2, align: "center", color: K.RED, alpha: K.clamp((G.mt - 1.6) * 2) });
+  }
+}
+const bot = makeBot(G, F, B, K);
+function startRun(seed, botSeed) {
+  G.auto = false;
+  reseed(seed);
+  bot.reset(botSeed);
+  for (const k in G.keys) G.keys[k] = false;
+  G.press = {};
+  G.simT = 0;
+  G.sndLog = [];
+  G.seen = { go: 2, bite: 0, wipe: 0, breath: 0, shards: 0, stag: 0 };
+  begin();
+}
+function stepRun() {
+  bot.step(1 / 60);
+  frame(last + 1000 / 60);
+  G.simT += 1 / 60;
+}
+/* play many fights quickly, without drawing, and say how each went */
+function search(seeds, botSeeds) {
+  const out = [];
+  G.noRender = true;
+  for (const seed of seeds)
+    for (const bs of botSeeds) {
+      startRun(seed, bs);
+      let n = 0;
+      while (G.mode !== "won" && !(G.mode === "lost" && G.mt > 1) && n < 60 * 150) {
+        stepRun();
+        n++;
+      }
+      out.push({ seed, bs, end: G.mode, sec: +(n / 60).toFixed(1), hp: Math.round(F.hp), ...G.stats });
+    }
+  G.noRender = false;
+  last = performance.now();
+  return out;
+}
+function wavBlob(buf) {
+  const n = buf.length,
+    ch = buf.numberOfChannels;
+  const ab = new ArrayBuffer(44 + n * ch * 2),
+    v = new DataView(ab);
+  const ws = (o, s) => [...s].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+  ws(0, "RIFF");
+  v.setUint32(4, 36 + n * ch * 2, true);
+  ws(8, "WAVEfmt ");
+  v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true);
+  v.setUint16(22, ch, true);
+  v.setUint32(24, buf.sampleRate, true);
+  v.setUint32(28, buf.sampleRate * ch * 2, true);
+  v.setUint16(32, ch * 2, true);
+  v.setUint16(34, 16, true);
+  ws(36, "data");
+  v.setUint32(40, n * ch * 2, true);
+  const d = [];
+  for (let c = 0; c < ch; c++) d.push(buf.getChannelData(c));
+  let o = 44;
+  for (let i = 0; i < n; i++)
+    for (let c = 0; c < ch; c++) {
+      v.setInt16(o, Math.max(-1, Math.min(1, d[c][i])) * 32767, true);
+      o += 2;
+    }
+  return new Blob([ab], { type: "audio/wav" });
+}
+/* the same Sound class, rendered offline from the log of what the fight played and when */
+async function renderAudio(log, sec) {
+  const off = new OfflineAudioContext(2, Math.ceil(48000 * sec), 48000);
+  const s2 = new Sound();
+  s2.start(off);
+  for (const [name, args, at] of log) {
+    s2.fixedT = at;
+    s2[name](...args);
+  }
+  return wavBlob(await off.startRendering());
+}
+const REC = { n: 0, done: false, err: "", sec: 0 };
+async function post(url, body) {
+  for (let i = 0; ; i++) {
+    try {
+      const r = await fetch(url, { method: "POST", body });
+      if (r.ok) return;
+      throw new Error("HTTP " + r.status);
+    } catch (e) {
+      if (i >= 5) throw e;
+      await new Promise((r) => setTimeout(r, 400));
+    }
+  }
+}
+/* many frames in one request: each is a 4-byte length, then the JPEG */
+function sendBatch(first, frames) {
+  const parts = [];
+  for (const f of frames) {
+    const h = new Uint8Array(4);
+    new DataView(h.buffer).setUint32(0, f.length, true);
+    parts.push(h, f);
+  }
+  return post("/__rec/batch/" + first, new Blob(parts));
+}
+/* one fight, every frame saved: the pictures to /__rec/frame/N, the sound to /__rec/audio */
+async function record(seed, botSeed, endHold = 3.4) {
+  REC.n = 0;
+  REC.done = false;
+  REC.err = "";
+  try {
+    setRs(1);
+    document.body.classList.add("rec");
+    G.rec = true;
+    startRun(seed, botSeed);
+    let hold = 0,
+      batch = [];
+    while (true) {
+      stepRun();
+      // synchronous grab, posts sent in batches: a page that is not being painted answers awaits slowly
+      const url = cv.toDataURL("image/jpeg", 0.95);
+      const bin = Uint8Array.from(atob(url.slice(url.indexOf(",") + 1)), (c) => c.charCodeAt(0));
+      batch.push(bin);
+      REC.n++;
+      if (batch.length >= 24) {
+        await sendBatch(REC.n - batch.length, batch);
+        batch = [];
+      }
+      if (G.mode === "won") {
+        hold += 1 / 60;
+        if (hold > endHold) break;
+      }
+      if ((G.mode === "lost" && G.mt > 3.5) || REC.n > 60 * 170) break;
+    }
+    if (batch.length) await sendBatch(REC.n - batch.length, batch);
+    REC.sec = G.simT;
+    REC.stats = Object.assign({ end: G.mode, hp: Math.round(F.hp) }, G.stats);
+    const wav = await renderAudio(G.sndLog, G.simT + 0.4);
+    await post("/__rec/audio", wav);
+  } catch (e) {
+    REC.err = String(e && e.stack ? e.stack : e);
+  }
+  G.rec = false;
+  REC.done = true;
+}
+window.__P = { G, F, B, sim, begin, finish, search, record, REC, startRun, stepRun };

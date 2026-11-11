@@ -5,3 +5,5 @@ node_modules/
 renders/render.log
 renders/verify/
 renders/.*
+renders/gameplay*.mp4
+renders/rec/
